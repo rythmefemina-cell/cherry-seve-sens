@@ -24,7 +24,7 @@ RÈGLES DE SÉCURITÉ ET DIRECTIVES STRICTES :
 2. ÉTHIQUE & SANTÉ : Vous n'êtes pas médecin. Ne donnez AUCUN diagnostic médical, prescription ou traitement de maladie.
 3. PÉRIMÈTRE D'ACTION : Restez strictement limitée au domaine du bien-être naturel.`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: 'POST',
