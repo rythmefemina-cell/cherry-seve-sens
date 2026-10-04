@@ -36,13 +36,19 @@
   </div>
 
   <script>
+    const chatHistory = [];
+    let sending = false;
+
     async function sendMessage() {
+      if (sending) return;
+
       const input = document.getElementById('userInput');
       const text = input.value.trim();
       if (!text) return;
 
+      sending = true;
       const messagesDiv = document.getElementById('messages');
-      
+
       const userMsg = document.createElement('div');
       userMsg.className = 'message user';
       userMsg.textContent = text;
@@ -60,13 +66,22 @@
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text })
+          body: JSON.stringify({ message: text, history: chatHistory })
         });
         const data = await response.json();
-        loadingMsg.textContent = data.response || 'Désolé, une erreur est survenue.';
+
+        if (data.response) {
+          loadingMsg.textContent = data.response;
+          chatHistory.push({ role: 'user', text: text });
+          chatHistory.push({ role: 'model', text: data.response });
+        } else {
+          loadingMsg.textContent = 'Désolé, une erreur est survenue.';
+        }
       } catch (err) {
         loadingMsg.textContent = 'Erreur de connexion.';
       }
+
+      sending = false;
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
   </script>
