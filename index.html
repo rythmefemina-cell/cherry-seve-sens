@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cherry - Sève & Sens</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #f4f6f8; display: flex; justify-content: center; align-items: center; height: 100vh; padding: 20px; }
+    .chat-card { width: 100%; max-width: 450px; height: 600px; background: #ffffff; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
+    .chat-header { background: #2c5e3b; color: white; padding: 16px 20px; font-size: 1.1rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+    .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    .message { max-width: 80%; padding: 12px 16px; border-radius: 12px; font-size: 0.95rem; line-height: 1.4; }
+    .bot { background: #eaf2ed; color: #1c3823; align-self: flex-start; border-bottom-left-radius: 2px; }
+    .user { background: #2c5e3b; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+    .chat-input-area { padding: 16px; border-top: 1px solid #eef0f2; display: flex; gap: 8px; background: #fff; }
+    input { flex: 1; padding: 12px 16px; border: 1px solid #ced4da; border-radius: 24px; outline: none; font-size: 0.95rem; }
+    input:focus { border-color: #2c5e3b; }
+    button { background: #2c5e3b; color: white; border: none; padding: 12px 20px; border-radius: 24px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+    button:hover { background: #21472c; }
+  </style>
+</head>
+<body>
+
+  <div class="chat-card">
+    <div class="chat-header">
+      🌸 Cherry - Sève & Sens
+    </div>
+    <div class="chat-messages" id="messages">
+      <div class="message bot">Bonjour ! Je suis Cherry, l'assistante virtuelle de Sève & Sens. Comment puis-je vous accompagner aujourd'aujourd'hui ?</div>
+    </div>
+    <div class="chat-input-area">
+      <input type="text" id="userInput" placeholder="Écrivez votre message..." onkeypress="if(event.key==='Enter') sendMessage()">
+      <button onclick="sendMessage()">Envoyer</button>
+    </div>
+  </div>
+
+  <script>
+    async function sendMessage() {
+      const input = document.getElementById('userInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const messagesDiv = document.getElementById('messages');
+      
+      const userMsg = document.createElement('div');
+      userMsg.className = 'message user';
+      userMsg.textContent = text;
+      messagesDiv.appendChild(userMsg);
+      input.value = '';
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+      const loadingMsg = document.createElement('div');
+      loadingMsg.className = 'message bot';
+      loadingMsg.textContent = '...';
+      messagesDiv.appendChild(loadingMsg);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+        });
+        const data = await response.json();
+        loadingMsg.textContent = data.response || 'Désolé, une erreur est survenue.';
+      } catch (err) {
+        loadingMsg.textContent = 'Erreur de connexion.';
+      }
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+  </script>
+
+</body>
+</html>
