@@ -4,13 +4,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    let { message } = req.body;
+    let { message, history } = req.body;
 
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Message valide requis' });
     }
 
-    message = message.replace(/<[^>]*>/gm, '').trim();
+    const clean = (t) => t.replace(/<[^>]*>/gm, '').trim();
+
+    message = clean(message);
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -23,7 +25,20 @@ RÈGLES DE SÉCURITÉ ET DIRECTIVES STRICTES :
 1. LANGUE & TON : Répondez exclusivement en français avec un ton chaleureux, bienveillant et professionnel.
 2. ÉTHIQUE & SANTÉ : Vous n'êtes pas médecin. Ne donnez AUCUN diagnostic médical, prescription ou traitement de maladie.
 3. PÉRIMÈTRE D'ACTION : Restez strictement limitée au domaine du bien-être naturel.
-4. FORMAT : Réponses courtes, 100 mots maximum, en texte simple. N'utilisez jamais de Markdown : pas d'astérisques, pas de dièses, pas de tirets de séparation. Donnez 2 ou 3 conseils essentiels, puis terminez par une question pour poursuivre l'échange.`;
+4. FORMAT : Réponses courtes, 100 mots maximum, en texte simple, sans mise en forme Markdown (pas de gras, pas de titres, pas de listes à puces). Écrivez dans un français correct avec la ponctuation normale : apostrophes, accents et traits d'union. Écrivez toujours le nom de la marque ainsi : Sève & Sens. Donnez 2 ou 3 conseils essentiels, puis terminez par une question pour poursuivre l'échange.
+5. CONVERSATION : Tenez compte des messages précédents de la conversation et répondez dans leur continuité. Ne saluez et ne souhaitez la bienvenue qu'au tout premier message.`;
+
+    const pastTurns = (Array.isArray(history) ? history : [])
+      .filter((h) => h && (h.role === 'user' || h.role === 'model') && typeof h.text === 'string')
+      .map((h) => ({ role: h.role, parts: [{ text: clean(h.text).slice(0, 2000) }] }))
+      .filter((h) => h.parts[0].text)
+      .slice(-10);
+
+    while (pastTurns.length && pastTurns[0].role !== 'user') {
+      pastTurns.shift();
+    }
+
+    const contents = [...pastTurns, { role: 'user', parts: [{ text: message }] }];
 
     const models = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite'];
     let lastError = 'Erreur API';
@@ -38,12 +53,8 @@ RÈGLES DE SÉCURITÉ ET DIRECTIVES STRICTES :
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [{ text: `${systemPrompt}\n\nUtilisateur: ${message}` }]
-              }
-            ]
+            system_instruction: { parts: [{ text: systemPrompt }] },
+            contents: contents
           })
         });
 
