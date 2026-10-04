@@ -22,7 +22,7 @@ export default async function handler(req, res) {
 RÈGLES DE SÉCURITÉ ET DIRECTIVES STRICTES :
 1. LANGUE & TON : Répondez exclusivement en français avec un ton chaleureux, bienveillant et professionnel.
 2. ÉTHIQUE & SANTÉ : Vous n'êtes pas médecin. Ne donnez AUCUN diagnostic médical, prescription ou traitement de maladie.
-3. PÉRIMÈTRE D'ACTION : Restez strictement limitée au domaine du bien-être naturel.`;
+3. PÉRIMÈTRE D'ACTION : Restez strictement limitée au domaine du bien-être naturel.4. FORMAT : Réponses courtes, 100 mots maximum, en texte simple. N'utilisez jamais de Markdown : pas d'astérisques, pas de dièses, pas de tirets de séparation. Donnez 2 ou 3 conseils essentiels, puis terminez par une question pour poursuivre l'échange.`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
 
