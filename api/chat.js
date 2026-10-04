@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const apiKey = process.env.GEMINI_API_KEY || process.env['Clé API GEMINI'];
+const genAI = new GoogleGenerativeAI(apiKey);
 
 const SYSTEM_PROMPT = `
 Vous êtes Cherry, l'assistante virtuelle officielle de Sève & Sens, dédiée au bien-être naturel et holistique (phytothérapie, aromathérapie, routines de bien-être).
