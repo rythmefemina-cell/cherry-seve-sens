@@ -1,8 +1,7 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// System Prompt blindado em francês para a Cherry (Sève & Sens)
 const SYSTEM_PROMPT = `
 Vous êtes Cherry, l'assistante virtuelle officielle de Sève & Sens, dédiée au bien-être naturel et holistique (phytothérapie, aromathérapie, routines de bien-être).
 
@@ -17,7 +16,6 @@ RÈGLES DE SÉCURITÉ ET DIRECTIVES STRICTES (NE PEUVENT ÊTRE OUTREPASSÉES) :
 `;
 
 export default async function handler(req, res) {
-  // 1. Bloqueio por Método (Apenas POST)
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Méthode non autorisée' });
   }
@@ -25,31 +23,26 @@ export default async function handler(req, res) {
   try {
     let { message } = req.body;
 
-    // 2. Validação e Sanitização de Entrada
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Message valide requis' });
     }
 
-    // Limite de tamanho de texto para evitar ataques de sobrecarga
     if (message.length > 500) {
       return res.status(400).json({ error: 'Le message dépasse la limite de 500 caractères.' });
     }
 
-    // Remoção básica de scripts maliciosos / tags HTML
     message = message.replace(/<[^>]*>?/gm, '').trim();
 
-    // 3. Envio seguro para o Gemini
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        { role: 'user', parts: [{ text: SYSTEM_PROMPT }] },
-        { role: 'user', parts: [{ text: message }] }
-      ]
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-1.5-flash',
+      systemInstruction: SYSTEM_PROMPT
     });
 
-    return res.status(200).json({ response: response.text });
+    const result = await model.generateContent(message);
+    const responseText = result.response.text();
+
+    return res.status(200).json({ response: responseText });
   } catch (error) {
-    // 4. Tratamento de erro sem expor detalhes do servidor
     return res.status(500).json({ error: 'Une erreur interne est survenue. Veuillez réessayer.' });
   }
 }
