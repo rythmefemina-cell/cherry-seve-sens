@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     message = message.replace(/<[^>]*>?/gm, '').trim();
 
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
+      model:'gemini-2.5-flash',
       systemInstruction: SYSTEM_PROMPT
     });
 
