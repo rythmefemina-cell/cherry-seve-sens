@@ -20,10 +20,27 @@
     html, body { height: 100%; }
     body { background: var(--creme); color: var(--encre); font-family: 'Jost', 'Segoe UI', sans-serif; font-weight: 400; display: flex; justify-content: center; align-items: center; padding: 14px; }
     .chat-card { width: 100%; max-width: 480px; height: 100%; max-height: 720px; background: var(--papier); border: 1px solid var(--ligne); border-radius: 22px; box-shadow: 0 12px 40px rgba(59,47,42,0.08); display: flex; flex-direction: column; overflow: hidden; }
-    .chat-header { padding: 18px 22px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--ligne); }
-    .avatar { width: 58px; height: 58px; border-radius: 50%; object-fit: cover; border: 2px solid var(--or); flex-shrink: 0; }
-    .brand { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.45rem; font-weight: 600; letter-spacing: 0.02em; line-height: 1.1; }
-    .tagline { font-size: 0.78rem; font-weight: 300; letter-spacing: 0.12em; text-transform: uppercase; color: var(--taupe); margin-top: 4px; }
+
+    .chat-header { padding: 12px 22px 0; display: flex; align-items: flex-end; gap: 16px; border-bottom: 1px solid var(--or); background: linear-gradient(180deg, var(--papier) 0%, var(--creme) 100%); }
+    .cherry { height: 124px; width: auto; flex-shrink: 0; display: block; transform-origin: 50% 100%; animation: balance 5s ease-in-out infinite; }
+    .cherry.salue { animation: salue 0.9s ease-in-out 1; }
+    .header-text { padding-bottom: 18px; }
+    .brand { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.55rem; font-weight: 600; letter-spacing: 0.02em; line-height: 1.1; }
+    .tagline { font-size: 0.76rem; font-weight: 300; letter-spacing: 0.12em; text-transform: uppercase; color: var(--taupe); margin-top: 5px; }
+
+    @keyframes balance {
+      0%, 100% { transform: rotate(-1.2deg); }
+      50% { transform: rotate(1.2deg); }
+    }
+    @keyframes salue {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      30% { transform: translateY(-7px) rotate(-3deg); }
+      60% { transform: translateY(0) rotate(3deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .cherry, .cherry.salue { animation: none; }
+    }
+
     .chat-messages { flex: 1; padding: 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
     .message { max-width: 84%; padding: 13px 17px; border-radius: 18px; font-size: 0.97rem; line-height: 1.5; }
     .bot { background: var(--nude); align-self: flex-start; border-bottom-left-radius: 4px; }
@@ -45,25 +62,34 @@
 
   <div class="chat-card">
     <div class="chat-header">
-      <img class="avatar" src="/cherry.png" alt="Portrait de Cherry" onerror="this.style.display='none'">
-      <div>
+      <img class="cherry" id="cherry" src="/cherry-site.png" alt="Cherry prend note de votre demande" onerror="this.style.display='none'">
+      <div class="header-text">
         <div class="brand">Sève & Sens</div>
-        <div class="tagline">Cherry, votre conseillère</div>
+        <div class="tagline">Cherry, votre assistante virtuelle</div>
       </div>
     </div>
     <div class="chat-messages" id="messages">
-      <div class="message bot">Bonjour ! Je suis Cherry, la conseillère virtuelle de Sève & Sens. Dites-moi ce que vous cherchez et je vous guide vers le soin naturel qui vous convient.</div>
+      <div class="message bot">Dites-moi ce que vous cherchez : je vous montre la sélection Sève & Sens.</div>
     </div>
     <div class="chat-input-area">
       <input type="text" id="userInput" placeholder="Écrivez votre message..." maxlength="1000" onkeypress="if(event.key==='Enter') sendMessage()">
       <button onclick="sendMessage()">Envoyer</button>
     </div>
-    <div class="notice">Cherry est une assistante IA. Merci de ne pas partager de données personnelles ou de santé. Certains liens sont affiliés : l'achat se fait sur le site du partenaire.</div>
+    <div class="notice">Cherry est une assistante virtuelle (IA). Merci de ne pas partager de données personnelles ou de santé. Certains liens sont affiliés : l'achat se fait sur le site du partenaire, sans coût supplémentaire pour vous.</div>
   </div>
 
   <script>
     const chatHistory = [];
     let sending = false;
+
+    function cherrySalue() {
+      const img = document.getElementById('cherry');
+      if (!img) return;
+      img.classList.remove('salue');
+      void img.offsetWidth;
+      img.classList.add('salue');
+      setTimeout(function () { img.classList.remove('salue'); }, 950);
+    }
 
     function addProducts(container, products) {
       if (!Array.isArray(products) || products.length === 0) return;
@@ -83,7 +109,7 @@
         const name = document.createElement('strong');
         name.textContent = p.name;
         const cta = document.createElement('span');
-        cta.textContent = 'Voir sur ' + (p.store || 'Notino');
+        cta.textContent = 'Voir en e-vitrine';
 
         link.appendChild(name);
         link.appendChild(cta);
@@ -129,6 +155,9 @@
           addProducts(messagesDiv, data.products);
           chatHistory.push({ role: 'user', text: text });
           chatHistory.push({ role: 'model', text: data.response });
+          cherrySalue();
+        } else if (response.status === 429 && data.error) {
+          loadingMsg.textContent = data.error;
         } else {
           loadingMsg.textContent = 'Désolée, une erreur est survenue. Merci de réessayer dans un instant.';
         }
