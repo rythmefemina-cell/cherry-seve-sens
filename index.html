@@ -65,22 +65,90 @@
       <img class="cherry" id="cherry" src="/cherry-site.png" alt="Cherry prend note de votre demande" onerror="this.style.display='none'">
       <div class="header-text">
         <div class="brand">Sève & Sens</div>
-        <div class="tagline">Cherry, votre assistante virtuelle</div>
+        <div class="tagline" id="tagline">Cherry, votre assistante virtuelle</div>
       </div>
     </div>
     <div class="chat-messages" id="messages">
-      <div class="message bot">Dites-moi ce que vous cherchez : je vous montre la sélection Sève & Sens.</div>
+      <div class="message bot" id="welcome">Dites-moi ce que vous cherchez : je vous montre la sélection Sève & Sens.</div>
     </div>
     <div class="chat-input-area">
       <input type="text" id="userInput" placeholder="Écrivez votre message..." maxlength="1000" onkeypress="if(event.key==='Enter') sendMessage()">
-      <button onclick="sendMessage()">Envoyer</button>
+      <button id="sendBtn" onclick="sendMessage()">Envoyer</button>
     </div>
-    <div class="notice">Cherry est une assistante virtuelle (IA). Merci de ne pas partager de données personnelles ou de santé. Certains liens sont affiliés : l'achat se fait sur le site du partenaire, sans coût supplémentaire pour vous.</div>
+    <div class="notice" id="notice">Cherry est une assistante virtuelle (IA). Merci de ne pas partager de données personnelles ou de santé. Certains liens sont affiliés : l'achat se fait sur le site du partenaire, sans coût supplémentaire pour vous.</div>
   </div>
 
   <script>
     const chatHistory = [];
     let sending = false;
+
+    const I18N = {
+      fr: {
+        tagline: 'Cherry, votre assistante virtuelle',
+        welcome: 'Dites-moi ce que vous cherchez : je vous montre la sélection Sève & Sens.',
+        placeholder: 'Écrivez votre message...',
+        send: 'Envoyer',
+        cta: 'Voir en e-vitrine',
+        typing: 'Cherry écrit…',
+        error: 'Désolée, une erreur est survenue. Merci de réessayer dans un instant.',
+        busy: 'Trop de messages en peu de temps. Merci de réessayer dans quelques minutes.',
+        offline: 'Erreur de connexion.',
+        notice: "Cherry est une assistante virtuelle (IA). Merci de ne pas partager de données personnelles ou de santé. Certains liens sont affiliés : l'achat se fait sur le site du partenaire, sans coût supplémentaire pour vous."
+      },
+      pt: {
+        tagline: 'Cherry, sua assistente virtual',
+        welcome: 'Diga-me o que você procura: eu mostro a seleção Sève & Sens.',
+        placeholder: 'Escreva sua mensagem...',
+        send: 'Enviar',
+        cta: 'Ver na e-vitrine',
+        typing: 'Cherry está escrevendo…',
+        error: 'Desculpe, ocorreu um erro. Tente novamente em instantes.',
+        busy: 'Muitas mensagens em pouco tempo. Tente novamente em alguns minutos.',
+        offline: 'Erro de conexão.',
+        notice: 'Cherry é uma assistente virtual (IA). Por favor, não compartilhe dados pessoais ou de saúde. Alguns links são afiliados: a compra é feita no site do parceiro, sem custo adicional para você.'
+      },
+      es: {
+        tagline: 'Cherry, su asistente virtual',
+        welcome: 'Dígame qué busca: le muestro la selección Sève & Sens.',
+        placeholder: 'Escriba su mensaje...',
+        send: 'Enviar',
+        cta: 'Ver en e-vitrina',
+        typing: 'Cherry está escribiendo…',
+        error: 'Lo siento, se ha producido un error. Inténtelo de nuevo en un momento.',
+        busy: 'Demasiados mensajes en poco tiempo. Inténtelo de nuevo en unos minutos.',
+        offline: 'Error de conexión.',
+        notice: 'Cherry es una asistente virtual (IA). Por favor, no comparta datos personales ni de salud. Algunos enlaces son de afiliación: la compra se realiza en el sitio del socio, sin coste adicional para usted.'
+      },
+      en: {
+        tagline: 'Cherry, your virtual assistant',
+        welcome: 'Tell me what you are looking for: I will show you the Sève & Sens selection.',
+        placeholder: 'Write your message...',
+        send: 'Send',
+        cta: 'See in e-vitrine',
+        typing: 'Cherry is typing…',
+        error: 'Sorry, something went wrong. Please try again in a moment.',
+        busy: 'Too many messages in a short time. Please try again in a few minutes.',
+        offline: 'Connection error.',
+        notice: 'Cherry is a virtual assistant (AI). Please do not share personal or health data. Some links are affiliate links: the purchase is made on the partner site, at no extra cost to you.'
+      }
+    };
+
+    let lang = 'fr';
+
+    function setLang(code) {
+      if (!I18N[code]) return;
+      lang = code;
+      const t = I18N[code];
+      document.documentElement.lang = code;
+      document.getElementById('tagline').textContent = t.tagline;
+      document.getElementById('welcome').textContent = t.welcome;
+      document.getElementById('userInput').placeholder = t.placeholder;
+      document.getElementById('sendBtn').textContent = t.send;
+      document.getElementById('notice').textContent = t.notice;
+      document.querySelectorAll('.product-link span').forEach(function (el) { el.textContent = t.cta; });
+    }
+
+    setLang(String(navigator.language || 'fr').slice(0, 2).toLowerCase());
 
     function cherrySalue() {
       const img = document.getElementById('cherry');
@@ -109,7 +177,7 @@
         const name = document.createElement('strong');
         name.textContent = p.name;
         const cta = document.createElement('span');
-        cta.textContent = 'Voir en e-vitrine';
+        cta.textContent = I18N[lang].cta;
 
         link.appendChild(name);
         link.appendChild(cta);
@@ -138,7 +206,7 @@
 
       const loadingMsg = document.createElement('div');
       loadingMsg.className = 'message bot';
-      loadingMsg.textContent = 'Cherry écrit…';
+      loadingMsg.textContent = I18N[lang].typing;
       messagesDiv.appendChild(loadingMsg);
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
@@ -151,18 +219,19 @@
         const data = await response.json();
 
         if (data.response) {
+          if (data.lang) setLang(data.lang);
           loadingMsg.textContent = data.response;
           addProducts(messagesDiv, data.products);
           chatHistory.push({ role: 'user', text: text });
           chatHistory.push({ role: 'model', text: data.response });
           cherrySalue();
-        } else if (response.status === 429 && data.error) {
-          loadingMsg.textContent = data.error;
+        } else if (response.status === 429) {
+          loadingMsg.textContent = I18N[lang].busy;
         } else {
-          loadingMsg.textContent = 'Désolée, une erreur est survenue. Merci de réessayer dans un instant.';
+          loadingMsg.textContent = I18N[lang].error;
         }
       } catch (err) {
-        loadingMsg.textContent = 'Erreur de connexion.';
+        loadingMsg.textContent = I18N[lang].offline;
       }
 
       sending = false;
