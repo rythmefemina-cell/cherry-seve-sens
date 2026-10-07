@@ -137,6 +137,37 @@ async function logNotFound(searches) {
   }
 }
 
+const LANG_WORDS = {
+  pt: ['você','voce','vocês','tem','têm','procuro','procurando','um','uma','uns','umas','não','nao','obrigada','obrigado','olá','ola','oi','bom','boa','dia','tarde','noite','quero','queria','preciso','gostaria','mãos','maos','creme','cabelo','cabelos','pele','rosto','corpo','os','as','do','da','dos','das','com','sem','meu','minha','algum','alguma','qual','quais','mais','também','tambem','isso','este','esta','sim','bebê','bebe','para','pra','e','o','em','no','na','que','tudo','bem','mostre','mostra','outro','outra','outros','outras','seca','oleosa','sabonete','xampu','perfume','natural','vegano','homem','mulher','algo','muito','obg'],
+  es: ['seca','grasa','perfume','natural','vegano','ustedes','tiene','tienen','busco','buscando','una','unos','unas','gracias','hola','buenos','buenas','días','dias','tardes','noches','quiero','quisiera','necesito','gustaría','manos','crema','cabello','pelo','piel','cara','cuerpo','y','el','los','las','del','con','sin','mi','algún','alguna','cuál','cual','más','también','esto','este','sí','bebé','hay','qué','muy','otro','otra','otros','otras','champú','jabón','hombre','mujer','algo','por','favor','tengo','para','la','en','que'],
+  fr: ['vous','avez','cherche','recherche','une','des','pas','merci','bonjour','bonsoir','salut','je','veux','voudrais','besoin','mains','crème','cheveux','peau','visage','corps','et','le','les','du','avec','sans','mon','ma','mes','quel','quelle','plus','aussi','est','oui','bébé','pour','un','la','en','que','autre','autres','savon','shampoing','parfum','naturel','homme','femme','quelque','chose','très','svp','ai','auriez'],
+  en: ['perfume','natural','dry','oily','vegan','organic','have','looking','for','an','not','thanks','thank','hello','hi','hey','i','want','need','hands','hand','cream','hair','skin','face','body','and','the','with','without','my','which','what','more','also','is','are','do','does','any','would','like','please','yes','baby','show','me','other','another','soap','shampoo','something','very','got']
+};
+
+const LANG_INFO = {
+  fr: { nom: 'français', bonjour: 'Bonjour !' },
+  pt: { nom: 'portugais', bonjour: 'Olá!' },
+  es: { nom: 'espagnol', bonjour: '¡Hola!' },
+  en: { nom: 'anglais', bonjour: 'Hello!' }
+};
+
+function detectLang(text) {
+  const t = String(text || '').toLowerCase();
+  const score = { pt: 0, es: 0, fr: 0, en: 0 };
+  if (/[ãõ]/.test(t)) score.pt += 3;
+  if (/[ñ¿¡]/.test(t)) score.es += 3;
+  if (/[œùû]|\bqu'|\bj'|\bd'|\bl'/.test(t)) score.fr += 2;
+  const words = t.split(/[^a-zà-öø-ÿœ']+/).filter(Boolean);
+  for (const w of words) {
+    for (const code of Object.keys(LANG_WORDS)) {
+      if (LANG_WORDS[code].includes(w)) score[code] += 1;
+    }
+  }
+  const ranked = Object.keys(score).sort((a, b) => score[b] - score[a]);
+  if (score[ranked[0]] === 0 || score[ranked[0]] === score[ranked[1]]) return null;
+  return ranked[0];
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Méthode non autorisée' });
@@ -181,6 +212,16 @@ export default async function handler(req, res) {
 
     const isFirst = pastTurns.length === 0;
 
+    let userLang = detectLang(message);
+    if (!userLang) {
+      for (let i = pastTurns.length - 1; i >= 0 && !userLang; i--) {
+        if (pastTurns[i].role === 'user') userLang = detectLang(pastTurns[i].parts[0].text);
+      }
+    }
+    const langRule = userLang
+      ? `\n\nLANGUE DE CETTE RÉPONSE (règle prioritaire sur toutes les autres) : la personne écrit en ${LANG_INFO[userLang].nom}. Rédigez toute votre réponse en ${LANG_INFO[userLang].nom}, même si ces règles et le catalogue sont en français. La salutation « Bonjour ! » se dit alors « ${LANG_INFO[userLang].bonjour} ». Seuls les noms des produits restent tels quels. Terminez par [[LANG: ${userLang}]].`
+      : '';
+
     const systemPrompt = `Vous êtes Cherry, l'assistante virtuelle (IA) de Sève & Sens, une sélection de soins naturels. Vous êtes une vendeuse : aimable, stratégique, efficace. Votre mission : aider chaque personne à trouver vite, dans la sélection, le produit qu'elle cherche.
 
 CATALOGUE (code | album | pour qui | produit | note interne) :
@@ -208,7 +249,7 @@ RÈGLES STRICTES :
 15. FORMAT : 40 mots maximum, en texte simple, sans mise en forme Markdown, avec la ponctuation normale de la langue utilisée. Écrivez toujours le nom de la marque ainsi : Sève & Sens.
 16. TRANSPARENCE : Si on vous le demande, dites que vous êtes une assistante virtuelle (IA) et que certains liens sont affiliés : l'achat se fait sur le site du partenaire et Sève & Sens peut percevoir une commission, sans coût supplémentaire pour la cliente.
 17. MOTS INTERDITS : N'utilisez jamais les mots « guide », « guider », « conseil », « conseiller », « conseillère », « je vous conseille », « recommander », « recommandation », ni leurs équivalents dans les autres langues (guia, guiar, conselho, aconselhar, recomendar ; guía, guiar, consejo, aconsejar, recomendar ; guide, advice, advise, recommend). Vous montrez, présentez, proposez et aidez à trouver ; vous ne guidez pas et ne conseillez pas.
-18. QUI EST DERRIÈRE : Si on vous demande à qui vous appartenez, qui vous a créée ou qui est votre patronne, répondez seulement : « Je suis l'assistante virtuelle de Sève & Sens, une sélection indépendante de soins naturels, bio et vegan. » Ne donnez jamais de nom de personne, de ville ni aucune information personnelle, et n'inventez rien. Si la personne insiste ou souhaite contacter quelqu'un, dites que le contact se trouve sur le profil Sève & Sens sur Pinterest.`;
+18. QUI EST DERRIÈRE : Si on vous demande à qui vous appartenez, qui vous a créée ou qui est votre patronne, répondez seulement : « Je suis l'assistante virtuelle de Sève & Sens, une sélection indépendante de soins naturels, bio et vegan. » Ne donnez jamais de nom de personne, de ville ni aucune information personnelle, et n'inventez rien. Si la personne insiste ou souhaite contacter quelqu'un, dites que le contact se trouve sur le profil Sève & Sens sur Pinterest.${langRule}`;
 
     const contents = [...pastTurns, { role: 'user', parts: [{ text: message }] }];
 
@@ -250,7 +291,7 @@ RÈGLES STRICTES :
             }
 
             const langMatch = raw.match(/\[\[\s*LANG\s*:\s*(fr|pt|es|en)\s*\]\]/i);
-            const lang = langMatch ? langMatch[1].toLowerCase() : null;
+            const lang = langMatch ? langMatch[1].toLowerCase() : userLang;
 
             const reply = raw.replace(/\[\[[^\]]*\]\]/g, '').trim();
 
