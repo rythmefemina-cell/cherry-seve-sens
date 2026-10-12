@@ -29,6 +29,11 @@ export default async function handler(req, res) {
     return res.status(403).send('forbidden');
   }
 
+  // Chamada de verificação da Awin, sem dados de venda (os !!!códigos!!! não foram preenchidos): ignora
+  if (!q.id || String(q.id).includes('!!!')) {
+    return res.status(200).send('ok (sem venda)');
+  }
+
   const moeda = q.moeda || 'EUR';
   const loja = LOJAS[q.loja] || `Awin (loja nº ${q.loja || '?'})`;
   const teste = q.id === 'TESTE' ? ' (TESTE)' : '';
