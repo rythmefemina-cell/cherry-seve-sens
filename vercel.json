@@ -5,5 +5,11 @@
       "src": "/api/chat",
       "dest": "/api/chat.js"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/vendas-cj",
+      "schedule": "5 * * * *"
+    }
   ]
 }
