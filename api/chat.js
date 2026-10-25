@@ -1,5 +1,8 @@
+// Ordem de prioridade: 1. Essenciagua, 2. Ecco Verde, 3. Notino
 const SHEETS = [
-  { store: 'Notino', url: 'https://docs.google.com/spreadsheets/d/1V5xe3BJgx_EudyPPL_mRd4op-fwBn11xgrGR_LeJgKs/export?format=csv' }
+  { store: 'Essenciagua', priority: 1, url: 'https://docs.google.com/spreadsheets/d/1SHxJuv7Jbuw0Cb8rDSkAFF7JukY339SB2BGBZVHRRYA/export?format=csv' },
+  { store: 'Ecco Verde', priority: 2, url: 'https://docs.google.com/spreadsheets/d/1UHKEw0PORDHf0jFfi6yTBffAZs0szvQysNAr_5XJuoU/export?format=csv' },
+  { store: 'Notino', priority: 3, url: 'https://docs.google.com/spreadsheets/d/1V5xe3BJgx_EudyPPL_mRd4op-fwBn11xgrGR_LeJgKs/export?format=csv' }
 ];
 
 // Tempo máximo de espera por cada modelo do Gemini (depois tenta o seguinte)
@@ -60,10 +63,22 @@ async function loadCatalog() {
 
   const items = [];
 
-  for (const sheet of SHEETS) {
+  // As planilhas são lidas ao mesmo tempo, mas guardadas na ordem de prioridade
+  const texts = await Promise.all(SHEETS.map(async (sheet) => {
     try {
-      const r = await fetch(sheet.url);
-      const text = await r.text();
+      const r = await fetch(sheet.url, { signal: AbortSignal.timeout(8000) });
+      return { ok: r.ok, text: await r.text() };
+    } catch (err) {
+      console.error(`Erro ao ler a planilha (${sheet.store}):`, err);
+      return { ok: false, text: '' };
+    }
+  }));
+
+  for (let s = 0; s < SHEETS.length; s++) {
+    const sheet = SHEETS[s];
+    try {
+      const r = texts[s];
+      const text = r.text;
 
       if (!r.ok || text.trim().startsWith('<')) {
         console.error(`Planilha inacessível (${sheet.store}): verifique o compartilhamento.`);
@@ -78,6 +93,7 @@ async function loadCatalog() {
       const iAlbum = col('album');
       const iPour = col('para quem');
       const iProd = col('produto');
+      const iBrand = col('marca');
       const iLink = col('link');
       const iOk = col('aprovado');
       const iArg = col('argumento');
@@ -99,6 +115,7 @@ async function loadCatalog() {
           album: iAlbum >= 0 ? (row[iAlbum] || '').trim() : '',
           pour: iPour >= 0 ? (row[iPour] || '').trim() : '',
           name: name,
+          brand: iBrand >= 0 ? (row[iBrand] || '').trim() : '',
           arg: iArg >= 0 ? (row[iArg] || '').trim() : '',
           note: iNote >= 0 ? (row[iNote] || '').trim() : '',
           url: url,
@@ -197,7 +214,7 @@ export default async function handler(req, res) {
     const catalog = await loadCatalog();
 
     const catalogText = catalog.length
-      ? catalog.map((p) => `${p.id} | ${p.album} | ${p.pour} | ${p.name}${p.arg ? ' | ' + p.arg : ''}${p.note ? ' | note: ' + p.note : ''}`).join('\n')
+      ? catalog.map((p) => `${p.id} | ${p.store} | ${p.album} | ${p.pour} | ${p.name}${p.brand && p.brand !== p.store ? ' (' + p.brand + ')' : ''}${p.arg ? ' | ' + p.arg : ''}${p.note ? ' | note: ' + p.note : ''}`).join('\n')
       : '(catalogue vide pour le moment)';
 
     const pastTurns = (Array.isArray(history) ? history : [])
@@ -224,10 +241,12 @@ export default async function handler(req, res) {
 
     const systemPrompt = `Vous êtes Cherry, l'assistante virtuelle (IA) de Sève & Sens, une sélection de soins naturels. Vous êtes une vendeuse : aimable, stratégique, efficace. Votre mission : aider chaque personne à trouver vite, dans la sélection, le produit qu'elle cherche.
 
-CATALOGUE (code | album | pour qui | produit | note interne) :
+CATALOGUE (code | boutique | album | pour qui | produit | note interne) :
 ${catalogText}
 
 Les notes internes sont rédigées en portugais et servent uniquement à vous informer (bio, vegano = végan, natural = naturel). Ne les citez jamais et ne les traduisez jamais telles quelles. Ne dites qu'un produit est végan ou bio que si sa note l'indique clairement, sans « a confirmar » ni « não ».
+
+ORDRE DES BOUTIQUES (règle importante) : quand plusieurs produits répondent à la demande, proposez toujours d'abord ceux de la boutique Essenciagua, puis ceux d'Ecco Verde, et seulement ensuite ceux de Notino. Tous les hydrolats, eaux florales, huiles essentielles et mélanges d'hydrolats viennent d'abord d'Essenciagua ; ne proposez un hydrolat d'Ecco Verde ou de Notino que si Essenciagua n'a pas cette plante. Ne proposez jamais deux fois le même produit ou la même plante venant de deux boutiques différentes. Ne citez jamais le nom de la boutique dans votre réponse, sauf si on vous le demande. Si la note interne contient « ATENÇÃO » ou « precauções », ajoutez en quelques mots qu'il faut lire les précautions d'emploi sur la fiche du produit.
 
 RÈGLES STRICTES :
 1. LANGUE & TON : Répondez dans la langue utilisée par la personne dans son dernier message : français, portugais, espagnol ou anglais. Si la langue est autre ou incertaine, répondez en français. Toutes les formules données en français dans ces règles (salutation, excuses, « Je ne peux pas choisir pour vous », formules d'au revoir) doivent être dites dans la langue de la personne, avec le même sens. Gardez les noms des produits tels qu'ils sont dans le catalogue, sans les traduire. Vouvoiement ou forme de politesse équivalente. Phrases courtes, claires et chaleureuses. Vous êtes l'amie des clientes, mais avant tout une vendeuse : droit au but, pas de bavardage, pas d'explications longues.
